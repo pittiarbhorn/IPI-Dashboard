@@ -36,7 +36,7 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo, useRef } = React;
 
-    // ฟังก์ชันแปลงข้อความงบประมาณเป็นตัวเลข (รองรับเครื่องหมายจุลภาค ,)
+    // ฟังก์ชันแปลงข้อความตัวเลข
     const parseNumber = (val) => {
       if (!val) return 0;
       if (typeof val === 'number') return val;
@@ -116,6 +116,10 @@
       const [data, setData] = useState([]);
       const [loading, setLoading] = useState(true);
 
+      // State สำหรับ Modal แสดงรายละเอียด
+      const [selectedProject, setSelectedProject] = useState(null);
+
+      // State ตัวกรอง
       const [selectedCategory, setSelectedCategory] = useState('ทั้งหมด');
       const [selectedProvince, setSelectedProvince] = useState('ทั้งหมด');
       const [selectedAgency, setSelectedAgency] = useState('ทั้งหมด');
@@ -164,7 +168,7 @@
         });
       }, [data, selectedCategory, selectedProvince, selectedAgency, selectedWinner]);
 
-      // 1. Data สำหรับ Bar Chart: งบประมาณตามจังหวัด
+      // Chart 1: งบประมาณตามจังหวัด
       const provinceChartData = useMemo(() => {
         const provinceMap = {};
         filteredData.forEach(item => {
@@ -184,7 +188,7 @@
         };
       }, [filteredData]);
 
-      // 2. Data สำหรับ Donut Chart: สัดส่วนประเภทงาน
+      // Chart 2: สัดส่วนประเภทงาน
       const categoryChartData = useMemo(() => {
         const catMap = {};
         filteredData.forEach(item => {
@@ -205,7 +209,7 @@
         };
       }, [filteredData]);
 
-      // 3. Data สำหรับ Horizontal Bar Chart: Top 5 ผู้ชนะการเสนอราคา
+      // Chart 3: Top 5 ผู้ชนะ
       const topWinnersChartData = useMemo(() => {
         const winnerMap = {};
         filteredData.forEach(item => {
@@ -312,8 +316,6 @@
           {/* Analytics Charts Section */}
           {!loading && filteredData.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              
-              {/* 1. Bar Chart - งบประมาณรายจังหวัด */}
               <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
                 <h3 className="text-sm font-semibold text-slate-200 mb-4 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#3B82F6]"></span>
@@ -324,7 +326,6 @@
                 </div>
               </div>
 
-              {/* 2. Donut Chart - สัดส่วนประเภทงาน */}
               <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
                 <h3 className="text-sm font-semibold text-slate-200 mb-4 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#F59E0B]"></span>
@@ -343,7 +344,6 @@
                 </div>
               </div>
 
-              {/* 3. Horizontal Bar Chart - Top 5 ผู้ชนะ */}
               <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
                 <h3 className="text-sm font-semibold text-slate-200 mb-4 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#22C55E]"></span>
@@ -357,7 +357,6 @@
                   />
                 </div>
               </div>
-
             </div>
           )}
 
@@ -372,54 +371,75 @@
               {filteredData.length > 0 ? (
                 filteredData.map((project, index) => {
                   const budgetNum = parseNumber(project['วงเงินงบประมาณ']);
+                  const procureNum = parseNumber(project['มูลค่าที่จัดหาได้']);
+                  const savingsNum = budgetNum - procureNum;
+
                   return (
                     <div 
                       key={index} 
-                      className="bg-slate-800/40 backdrop-blur-xl p-5 rounded-2xl border border-slate-700/50 hover:border-[#3B82F6]/50 transition-all duration-300 shadow-xl hover:shadow-2xl flex flex-col justify-between group"
+                      onClick={() => setSelectedProject(project)}
+                      className="bg-slate-800/40 backdrop-blur-xl p-5 rounded-2xl border border-slate-700/50 hover:border-[#3B82F6] transition-all duration-300 shadow-xl hover:shadow-2xl hover:shadow-blue-500/10 cursor-pointer flex flex-col justify-between group relative overflow-hidden"
                     >
                       <div>
-                        <div className="flex justify-between items-start mb-3 gap-2">
+                        {/* Header ของ Card: 1. เลขที่โครงการ */}
+                        <div className="flex justify-between items-center mb-3">
                           <span className="text-[11px] px-2.5 py-0.5 bg-blue-500/10 text-[#3B82F6] font-medium rounded-full border border-blue-500/20">
                             {project['ประเภทงาน'] || 'ไม่ระบุประเภท'}
                           </span>
-                          <span className="text-xs text-slate-500 font-mono">
-                            {project['เลขที่โครงการ']}
+                          <span className="text-xs text-slate-400 font-mono bg-slate-900/60 px-2 py-0.5 rounded border border-slate-700/50">
+                            {project['เลขที่โครงการ'] || '-'}
                           </span>
                         </div>
 
-                        <h3 className="font-semibold text-slate-100 text-base mb-2 line-clamp-2 leading-relaxed group-hover:text-blue-300 transition-colors" title={project['รายละเอียดงาน']}>
-                          {project['รายละเอียดงาน'] || 'ไม่มีรายละเอียดงาน'}
-                        </h3>
-
-                        <p className="text-xs text-slate-400 mb-1">
-                          <span className="text-slate-500">หน่วยงาน:</span> {project['ชื่อหน่วยงาน'] || '-'}
-                        </p>
-                        {project['จังหวัด'] && (
-                          <p className="text-xs text-slate-400 mb-4">
-                            <span className="text-slate-500">จังหวัด:</span> {project['จังหวัด']}
+                        {/* 2. ชื่อหน่วยงาน & 3. จังหวัด */}
+                        <div className="mb-4 space-y-1">
+                          <h3 className="font-semibold text-slate-100 text-sm group-hover:text-blue-300 transition-colors line-clamp-1" title={project['ชื่อหน่วยงาน']}>
+                            🏛️ {project['ชื่อหน่วยงาน'] || '-'}
+                          </h3>
+                          <p className="text-xs text-slate-400 flex items-center gap-1">
+                            <span>📍</span> จังหวัด: <span className="text-slate-200 font-medium">{project['จังหวัด'] || '-'}</span>
                           </p>
-                        )}
+                        </div>
                       </div>
 
-                      <div className="border-t border-slate-700/50 pt-3 mt-2 text-xs text-slate-300 space-y-1.5 bg-slate-900/40 -mx-5 -mb-5 p-4 rounded-b-2xl">
+                      {/* รายละเอียดด้านการเงินและผู้ชนะ */}
+                      <div className="border-t border-slate-700/50 pt-3 text-xs text-slate-300 space-y-2 bg-slate-900/50 -mx-5 -mb-5 p-4 rounded-b-2xl">
+                        
+                        {/* 4. วงเงินงบประมาณ */}
                         <div className="flex justify-between items-center">
                           <span className="text-slate-400">วงเงินงบประมาณ:</span>
                           <span className="font-semibold text-slate-100 font-mono">
                             {budgetNum > 0 ? budgetNum.toLocaleString() + ' บาท' : '-'}
                           </span>
                         </div>
+
+                        {/* 5. มูลค่าที่จัดหาได้ */}
                         <div className="flex justify-between items-center">
+                          <span className="text-slate-400">มูลค่าที่จัดหาได้:</span>
+                          <span className="font-medium text-slate-200 font-mono">
+                            {procureNum > 0 ? procureNum.toLocaleString() + ' บาท' : '-'}
+                          </span>
+                        </div>
+
+                        {/* 6. ประหยัดได้ */}
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">ประหยัดได้:</span>
+                          <span className={`font-semibold font-mono ${savingsNum > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                            {savingsNum > 0 ? `${savingsNum.toLocaleString()} บาท` : '0 บาท'}
+                          </span>
+                        </div>
+
+                        {/* 7. ผู้ชนะการเสนอราคา */}
+                        <div className="flex justify-between items-center pt-1 border-t border-slate-800">
                           <span className="text-slate-400">ผู้ชนะ:</span>
                           <span className="font-medium text-[#22C55E] truncate max-w-[160px]" title={project['รายชื่อผู้ชนะการเสนอราคา']}>
                             {project['รายชื่อผู้ชนะการเสนอราคา'] || '-'}
                           </span>
                         </div>
-                        {project['สถานที่'] && (
-                          <div className="text-slate-400 pt-2 border-t border-slate-800 text-[11px] flex items-start gap-1">
-                            <span>📍</span>
-                            <span className="truncate">{project['สถานที่']}</span>
-                          </div>
-                        )}
+
+                        <div className="text-[11px] text-blue-400 text-center pt-2 font-medium flex items-center justify-center gap-1 group-hover:underline">
+                          🔍 คลิกเพื่อดูรายละเอียดงานและสถานที่
+                        </div>
                       </div>
                     </div>
                   );
@@ -431,6 +451,84 @@
               )}
             </div>
           )}
+
+          {/* Modal Pop-up แสดงรายละเอียดงานและสถานที่ */}
+          {selectedProject && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
+              <div 
+                className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative space-y-5 max-h-[90vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* ปุ่มปิด Modal */}
+                <button 
+                  onClick={() => setSelectedProject(null)}
+                  className="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-2 rounded-full transition-colors"
+                >
+                  ✕
+                </button>
+
+                <div className="border-b border-slate-800 pb-3">
+                  <span className="text-xs px-2.5 py-1 bg-blue-500/10 text-[#3B82F6] font-medium rounded-full border border-blue-500/20">
+                    {selectedProject['ประเภทงาน'] || 'โครงการ'}
+                  </span>
+                  <h2 className="text-xl font-bold text-white mt-2">
+                    {selectedProject['รายละเอียดงาน'] || 'ไม่มีรายละเอียดงาน'}
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    เลขที่โครงการ: <span className="font-mono text-slate-300">{selectedProject['เลขที่โครงการ'] || '-'}</span>
+                  </p>
+                </div>
+
+                <div className="space-y-4 text-sm text-slate-300">
+                  <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 space-y-2">
+                    <p>🏛️ <span className="text-slate-400">หน่วยงาน:</span> {selectedProject['ชื่อหน่วยงาน'] || '-'}</p>
+                    <p>📍 <span className="text-slate-400">จังหวัด:</span> {selectedProject['จังหวัด'] || '-'}</p>
+                    <p>🏆 <span className="text-slate-400">ผู้ชนะการเสนอราคา:</span> <span className="text-emerald-400 font-medium">{selectedProject['รายชื่อผู้ชนะการเสนอราคา'] || '-'}</span></p>
+                  </div>
+
+                  {/* แสดงสถานที่แบบชัดเจน */}
+                  <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
+                    <h4 className="text-xs font-semibold text-slate-400 mb-1">📍 สถานที่ดำเนินโครงการ:</h4>
+                    <p className="text-slate-200 leading-relaxed">
+                      {selectedProject['สถานที่'] || 'ไม่ระบุข้อมูลสถานที่'}
+                    </p>
+                  </div>
+
+                  {/* สรุปงบประมาณ */}
+                  <div className="grid grid-cols-3 gap-3 pt-2 text-center">
+                    <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700/50">
+                      <p className="text-[11px] text-slate-400">งบประมาณ</p>
+                      <p className="font-bold text-white font-mono text-xs mt-1">
+                        {parseNumber(selectedProject['วงเงินงบประมาณ']).toLocaleString()} ฿
+                      </p>
+                    </div>
+                    <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700/50">
+                      <p className="text-[11px] text-slate-400">จัดหาได้</p>
+                      <p className="font-bold text-slate-200 font-mono text-xs mt-1">
+                        {parseNumber(selectedProject['มูลค่าที่จัดหาได้']).toLocaleString()} ฿
+                      </p>
+                    </div>
+                    <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700/50">
+                      <p className="text-[11px] text-slate-400">ประหยัดได้</p>
+                      <p className="font-bold text-emerald-400 font-mono text-xs mt-1">
+                        {(parseNumber(selectedProject['วงเงินงบประมาณ']) - parseNumber(selectedProject['มูลค่าที่จัดหาได้'])).toLocaleString()} ฿
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button 
+                    onClick={() => setSelectedProject(null)}
+                    className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-medium text-xs transition-colors"
+                  >
+                    ปิดหน้าต่าง
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       );
     }
