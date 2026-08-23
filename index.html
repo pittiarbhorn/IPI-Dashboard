@@ -24,7 +24,7 @@
       const [selectedCategory, setSelectedCategory] = useState('ทั้งหมด');
 
       // ⚠️ นำ Web App URL จาก Google Apps Script มาวางแทนที่ตรงนี้
-      const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL";
+      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw7Mz9UilmHldUjjYq1KbL-R3rfkb0zkQhJIvckcIKL5ezl8EnMIa7Snl0hDIqQCk2S/exec";
 
       // กำหนดหมวดหมู่งาน 3 หมวด
       const categories = [
@@ -102,7 +102,7 @@
               ) : (
                 <div className="col-span-full text-center py-8 text-gray-500">
                   {SCRIPT_URL === "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL" 
-                    ? "https://script.google.com/macros/s/AKfycbw7Mz9UilmHldUjjYq1KbL-R3rfkb0zkQhJIvckcIKL5ezl8EnMIa7Snl0hDIqQCk2S/exec" 
+                    ? "กรุณาใส่ Web App URL จาก Google Apps Script ในโค้ด" 
                     : "ไม่พบข้อมูลโครงการในหมวดหมู่นี้"}
                 </div>
               )}
