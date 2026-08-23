@@ -6,32 +6,45 @@
   <title>IPI-Dashboard</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Prompt -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <!-- React & ReactDOM -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <!-- Babel -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;
+      background-color: #0F172A;
+    }
+  </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-[#0F172A] text-slate-200 min-h-screen relative overflow-x-hidden">
+  
+  <!-- Background Glow Elements (Glassmorphism Accent) -->
+  <div class="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+  <div class="fixed bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-emerald-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useMemo } = React;
 
     function IPIDashboard() {
       const [data, setData] = useState([]);
       const [loading, setLoading] = useState(true);
+
+      // State ตัวกรองทั้ง 4
       const [selectedCategory, setSelectedCategory] = useState('ทั้งหมด');
+      const [selectedProvince, setSelectedProvince] = useState('ทั้งหมด');
+      const [selectedAgency, setSelectedAgency] = useState('ทั้งหมด');
+      const [selectedWinner, setSelectedWinner] = useState('ทั้งหมด');
 
-      // อัปเดต Web App URL ใหม่ที่มี SPREADSHEET_ID เรียบร้อยแล้ว
       const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwnmulpaVrWQDe_sylfiDFMFnZ7OnBXk-dmqqWWzJzf612EVjj3Y5T9baCB9E1KfPpZ/exec";
-
-      const categories = [
-        'ทั้งหมด',
-        'แอสฟัลติกคอนกรีต',
-        'ก่อสร้างอาคาร',
-        'ถนนคอนกรีตเสริมเหล็ก'
-      ];
 
       const fetchData = async () => {
         try {
@@ -50,85 +63,174 @@
         fetchData();
       }, []);
 
-      const filteredData = selectedCategory === 'ทั้งหมด'
-        ? data
-        : data.filter(item => item['ประเภทงาน'] === selectedCategory);
+      const getUniqueOptions = (key) => {
+        if (!Array.isArray(data)) return ['ทั้งหมด'];
+        const options = data
+          .map(item => item[key])
+          .filter(val => val && String(val).trim() !== '');
+        return ['ทั้งหมด', ...Array.from(new Set(options)).sort()];
+      };
+
+      const categories = useMemo(() => getUniqueOptions('ประเภทงาน'), [data]);
+      const provinces = useMemo(() => getUniqueOptions('จังหวัด'), [data]);
+      const agencies = useMemo(() => getUniqueOptions('ชื่อหน่วยงาน'), [data]);
+      const winners = useMemo(() => getUniqueOptions('รายชื่อผู้ชนะการเสนอราคา'), [data]);
+
+      const filteredData = useMemo(() => {
+        if (!Array.isArray(data)) return [];
+        return data.filter(item => {
+          const matchCategory = selectedCategory === 'ทั้งหมด' || item['ประเภทงาน'] === selectedCategory;
+          const matchProvince = selectedProvince === 'ทั้งหมด' || item['จังหวัด'] === selectedProvince;
+          const matchAgency = selectedAgency === 'ทั้งหมด' || item['ชื่อหน่วยงาน'] === selectedAgency;
+          const matchWinner = selectedWinner === 'ทั้งหมด' || item['รายชื่อผู้ชนะการเสนอราคา'] === selectedWinner;
+          return matchCategory && matchProvince && matchAgency && matchWinner;
+        });
+      }, [data, selectedCategory, selectedProvince, selectedAgency, selectedWinner]);
 
       return (
-        <div className="p-6 max-w-7xl mx-auto">
-          <header className="mb-6 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <h1 className="text-3xl font-bold text-gray-800">IPI-Dashboard</h1>
-            <p className="text-gray-500 text-sm mt-1">ระบบติดตามโครงการ EGP (ข้อมูลจาก Google Sheets)</p>
+        <div className="p-6 max-w-7xl mx-auto relative z-10">
+          
+          {/* Header */}
+          <header className="mb-6 bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-6 rounded-2xl shadow-2xl">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-white via-slate-200 to-blue-400 bg-clip-text text-transparent">
+              IPI-Dashboard
+            </h1>
           </header>
 
-          <div className="mb-6 flex items-center gap-3 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-            <label className="font-semibold text-gray-700">ประเภทงาน:</label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="p-2 border rounded-lg shadow-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
-            >
-              {categories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-            <span className="ml-auto text-sm text-gray-500">
-              พบ {filteredData.length} รายการ
-            </span>
+          {/* Glassmorphism Filter Container */}
+          <div className="mb-6 bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-5 rounded-2xl shadow-2xl">
+            <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-700/50">
+              <h2 className="font-semibold text-slate-300 text-sm flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#3B82F6]"></span>
+                ตัวกรองค้นหาโครงการ
+              </h2>
+              <span className="text-xs font-semibold text-[#3B82F6] bg-blue-500/10 border border-blue-500/20 px-3 py-1 rounded-full">
+                พบ {filteredData.length} รายการ
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* 1. ประเภทงาน */}
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">ประเภทงาน</label>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] transition-all"
+                >
+                  {categories.map(cat => (
+                    <option key={cat} value={cat} className="bg-[#0F172A] text-slate-200">{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 2. จังหวัด */}
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">จังหวัด</label>
+                <select
+                  value={selectedProvince}
+                  onChange={(e) => setSelectedProvince(e.target.value)}
+                  className="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] transition-all"
+                >
+                  {provinces.map(prov => (
+                    <option key={prov} value={prov} className="bg-[#0F172A] text-slate-200">{prov}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 3. หน่วยงาน */}
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">หน่วยงาน</label>
+                <select
+                  value={selectedAgency}
+                  onChange={(e) => setSelectedAgency(e.target.value)}
+                  className="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] transition-all"
+                >
+                  {agencies.map(agency => (
+                    <option key={agency} value={agency} className="bg-[#0F172A] text-slate-200">{agency}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 4. ผู้ชนะการเสนอราคา */}
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">ผู้ชนะการเสนอราคา</label>
+                <select
+                  value={selectedWinner}
+                  onChange={(e) => setSelectedWinner(e.target.value)}
+                  className="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] transition-all"
+                >
+                  {winners.map(winner => (
+                    <option key={winner} value={winner} className="bg-[#0F172A] text-slate-200">{winner}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
+          {/* Cards Grid */}
           {loading ? (
-            <div className="text-center py-20 text-gray-600 font-medium">
+            <div className="text-center py-24 text-slate-400 font-light tracking-wide flex flex-col items-center justify-center gap-3">
+              <div className="w-8 h-8 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin"></div>
               กำลังโหลดข้อมูลจาก Google Sheets...
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredData.length > 0 ? (
                 filteredData.map((project, index) => (
-                  <div key={index} className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow flex flex-col justify-between">
+                  <div 
+                    key={index} 
+                    className="bg-slate-800/40 backdrop-blur-xl p-5 rounded-2xl border border-slate-700/50 hover:border-[#3B82F6]/50 transition-all duration-300 shadow-xl hover:shadow-2xl hover:shadow-blue-500/5 flex flex-col justify-between group"
+                  >
                     <div>
-                      <div className="flex justify-between items-start mb-2 gap-2">
-                        <span className="text-xs px-2.5 py-1 bg-blue-50 text-blue-700 font-medium rounded-full border border-blue-100">
+                      <div className="flex justify-between items-start mb-3 gap-2">
+                        <span className="text-[11px] px-2.5 py-0.5 bg-blue-500/10 text-[#3B82F6] font-medium rounded-full border border-blue-500/20">
                           {project['ประเภทงาน'] || 'ไม่ระบุประเภท'}
                         </span>
-                        <span className="text-xs text-gray-400 font-mono">
+                        <span className="text-xs text-slate-500 font-mono">
                           {project['เลขที่โครงการ']}
                         </span>
                       </div>
 
-                      <h3 className="font-bold text-gray-800 text-base mb-2 line-clamp-2" title={project['รายละเอียดงาน']}>
+                      <h3 className="font-semibold text-slate-100 text-base mb-2 line-clamp-2 leading-relaxed group-hover:text-blue-300 transition-colors" title={project['รายละเอียดงาน']}>
                         {project['รายละเอียดงาน'] || 'ไม่มีรายละเอียดงาน'}
                       </h3>
 
-                      <p className="text-xs text-gray-500 mb-3">
-                        <span className="font-semibold text-gray-600">หน่วยงาน:</span> {project['ชื่อหน่วยงาน'] || '-'}
+                      <p className="text-xs text-slate-400 mb-1">
+                        <span className="text-slate-500">หน่วยงาน:</span> {project['ชื่อหน่วยงาน'] || '-'}
                       </p>
+                      {project['จังหวัด'] && (
+                        <p className="text-xs text-slate-400 mb-4">
+                          <span className="text-slate-500">จังหวัด:</span> {project['จังหวัด']}
+                        </p>
+                      )}
                     </div>
 
-                    <div className="border-t pt-3 mt-2 text-xs text-gray-600 space-y-1 bg-gray-50 -mx-5 -mb-5 p-4 rounded-b-xl">
-                      <div className="flex justify-between">
-                        <span>วงเงินงบประมาณ:</span>
-                        <span className="font-semibold text-gray-800">
+                    <div className="border-t border-slate-700/50 pt-3 mt-2 text-xs text-slate-300 space-y-1.5 bg-slate-900/40 -mx-5 -mb-5 p-4 rounded-b-2xl">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">วงเงินงบประมาณ:</span>
+                        <span className="font-medium text-slate-100 font-mono">
                           {project['วงเงินงบประมาณ'] ? Number(project['วงเงินงบประมาณ']).toLocaleString() + ' บาท' : '-'}
                         </span>
                       </div>
-                      <div className="flex justify-between">
-                        <span>ผู้ชนะการเสนอราคา:</span>
-                        <span className="font-medium text-emerald-700 truncate max-w-[150px]" title={project['รายชื่อผู้ชนะการเสนอราคา']}>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">ผู้ชนะ:</span>
+                        <span className="font-medium text-[#22C55E] truncate max-w-[160px]" title={project['รายชื่อผู้ชนะการเสนอราคา']}>
                           {project['รายชื่อผู้ชนะการเสนอราคา'] || '-'}
                         </span>
                       </div>
                       {project['สถานที่'] && (
-                        <div className="text-gray-500 pt-1 border-t border-gray-200 text-[11px]">
-                          📍 {project['สถานที่']}
+                        <div className="text-slate-400 pt-2 border-t border-slate-800 text-[11px] flex items-start gap-1">
+                          <span>📍</span>
+                          <span className="truncate">{project['สถานที่']}</span>
                         </div>
                       )}
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="col-span-full text-center py-16 bg-white rounded-xl text-gray-500 border border-dashed border-gray-300">
-                  ไม่พบข้อมูลโครงการในหมวดหมู่นี้
+                <div className="col-span-full text-center py-20 bg-slate-800/20 backdrop-blur-md rounded-2xl text-slate-400 border border-dashed border-slate-700/60">
+                  ไม่พบข้อมูลโครงการตามเงื่อนไขที่เลือก
                 </div>
               )}
             </div>
