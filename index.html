@@ -23,10 +23,9 @@
       const [loading, setLoading] = useState(true);
       const [selectedCategory, setSelectedCategory] = useState('ทั้งหมด');
 
-      // อัปเดต Web App URL ตัวใหม่เรียบร้อยแล้ว
-      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx8jkeGHpbi1WNZcjT5WtGZ2mj7-wkVnSVMz2FjHhwAN90EhFlv-emygUtPnpOscX8X/exec";
+      // อัปเดต Web App URL ใหม่ที่มี SPREADSHEET_ID เรียบร้อยแล้ว
+      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwnmulpaVrWQDe_sylfiDFMFnZ7OnBXk-dmqqWWzJzf612EVjj3Y5T9baCB9E1KfPpZ/exec";
 
-      // ตัวเลือกหมวดหมู่ตรงตามคอลัมน์ 'ประเภทงาน' ใน Sheet
       const categories = [
         'ทั้งหมด',
         'แอสฟัลติกคอนกรีต',
@@ -51,7 +50,6 @@
         fetchData();
       }, []);
 
-      // กรองข้อมูลด้วยคอลัมน์ 'ประเภทงาน'
       const filteredData = selectedCategory === 'ทั้งหมด'
         ? data
         : data.filter(item => item['ประเภทงาน'] === selectedCategory);
@@ -63,7 +61,6 @@
             <p className="text-gray-500 text-sm mt-1">ระบบติดตามโครงการ EGP (ข้อมูลจาก Google Sheets)</p>
           </header>
 
-          {/* แถบกรองข้อมูล */}
           <div className="mb-6 flex items-center gap-3 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
             <label className="font-semibold text-gray-700">ประเภทงาน:</label>
             <select
@@ -80,7 +77,6 @@
             </span>
           </div>
 
-          {/* แสดงการ์ดข้อมูล */}
           {loading ? (
             <div className="text-center py-20 text-gray-600 font-medium">
               กำลังโหลดข้อมูลจาก Google Sheets...
