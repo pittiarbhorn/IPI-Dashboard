@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Construction Project Dashboard</title>
+    <!-- Tailwind CSS for Modern UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for Visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PapaParse for reading Google Sheets CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Prompt', 'sans-serif'] },
+                    colors: {
+                        navy: '#0f172a', /* น้ำเงินเข้ม */
+                        primary: '#1e3a8a', /* น้ำเงินหลัก */
+                        accent: '#dc2626', /* แดงเน้น */
+                        light: '#f8fafc' /* ขาวอมเทา */
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* ซ่อน Scrollbar สำหรับตารางแต่ยังเลื่อนได้ */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-light text-slate-800 font-sans">
+
+    <!-- Navbar -->
+    <nav class="bg-primary text-white shadow-lg border-b-4 border-accent">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold tracking-tight">Construction Tracking Dashboard</h1>
+            <span class="text-sm bg-navy px-3 py-1 rounded-full border border-blue-400">Live Data</span>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- 1. Filter & Control -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row gap-4">
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-slate-500 mb-1">จังหวัด</label>
+                <select id="filter-province" class="w-full border-slate-300 rounded-md shadow-sm focus:border-primary focus:ring-primary p-2 border">
+                    <option value="all">ทั้งหมด</option>
+                </select>
+            </div>
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-slate-500 mb-1">ประเภทงานก่อสร้าง</label>
+                <select id="filter-type" class="w-full border-slate-300 rounded-md shadow-sm focus:border-primary focus:ring-primary p-2 border">
+                    <option value="all">ทั้งหมด</option>
+                </select>
+            </div>
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-slate-500 mb-1">หน่วยงานจัดซื้อ</label>
+                <select id="filter-agency" class="w-full border-slate-300 rounded-md shadow-sm focus:border-primary focus:ring-primary p-2 border">
+                    <option value="all">ทั้งหมด</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 2. KPIs -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+            <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-primary">
+                <p class="text-slate-500 text-sm font-medium">จำนวนโครงการทั้งหมด</p>
+                <p id="kpi-total-projects" class="text-2xl font-bold text-navy mt-1">0</p>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-blue-500">
+                <p class="text-slate-500 text-sm font-medium">รวมวงเงินงบประมาณ (บาท)</p>
+                <p id="kpi-total-budget" class="text-2xl font-bold text-navy mt-1">0</p>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-green-500">
+                <p class="text-slate-500 text-sm font-medium">รวมมูลค่าจัดหาได้จริง (บาท)</p>
+                <p id="kpi-total-winning" class="text-2xl font-bold text-navy mt-1">0</p>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-accent">
+                <p class="text-slate-500 text-sm font-medium">เปอร์เซ็นต์ประหยัดเฉลี่ย</p>
+                <p id="kpi-avg-savings" class="text-2xl font-bold text-navy mt-1">0%</p>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-orange-400">
+                <p class="text-slate-500 text-sm font-medium">ผู้รับเหมาที่ได้งานมากสุด</p>
+                <p id="kpi-top-winner" class="text-lg font-bold text-navy mt-1 truncate">-</p>
+            </div>
+        </div>
+
+        <!-- 3. Visualizations -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 lg:col-span-2">
+                <h3 class="text-lg font-bold text-navy mb-4">งบประมาณ vs ราคาประมูลได้ (แยกตามประเภทงาน)</h3>
+                <div class="h-72"><canvas id="chart-budget-vs-winning"></canvas></div>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                <h3 class="text-lg font-bold text-navy mb-4">สัดส่วนประเภทงาน</h3>
+                <div class="h-72 relative"><canvas id="chart-type-donut"></canvas></div>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 lg:col-span-3">
+                <h3 class="text-lg font-bold text-navy mb-4">Top 5 ผู้ชนะการประมูล (ตามมูลค่างานสูงสุด)</h3>
+                <div class="h-80"><canvas id="chart-top-winners"></canvas></div>
+            </div>
+        </div>
+
+        <!-- 4. Data Table -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="text-lg font-bold text-navy">ข้อมูลรายละเอียดโครงการ</h3>
+            </div>
+            <div class="overflow-x-auto no-scrollbar">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-100">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">เลขที่โครงการ</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">ชื่อโครงการ</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">งบประมาณ</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">ผู้ชนะประมูล</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">ประหยัด (%)</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body" class="bg-white divide-y divide-slate-100 text-sm">
+                        <!-- Data will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="p-4 border-t border-slate-200 flex justify-between items-center bg-slate-50">
+                <button id="btn-prev" class="px-4 py-2 border border-slate-300 rounded text-slate-600 hover:bg-slate-100 disabled:opacity-50">ก่อนหน้า</button>
+                <span id="page-info" class="text-slate-600 text-sm">หน้า 1</span>
+                <button id="btn-next" class="px-4 py-2 border border-slate-300 rounded text-slate-600 hover:bg-slate-100 disabled:opacity-50">ถัดไป</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modal for Details -->
+    <div id="detail-modal" class="fixed inset-0 bg-slate-900 bg-opacity-50 hidden flex items-center justify-center z-50 px-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-primary text-white rounded-t-xl">
+                <h3 class="font-bold text-lg">รายละเอียดโครงการ</h3>
+                <button onclick="closeModal()" class="text-white hover:text-red-200 text-2xl font-bold">&times;</button>
+            </div>
+            <div class="p-6 overflow-y-auto" id="modal-content">
+                <!-- Content injected here -->
+            </div>
+            <div class="p-4 border-t border-slate-100 flex justify-end bg-slate-50 rounded-b-xl">
+                <button onclick="closeModal()" class="px-4 py-2 bg-slate-200 text-slate-800 rounded hover:bg-slate-300 font-medium">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- การตั้งค่าคอลัมน์ข้อมูล (เปลี่ยนให้ตรงกับชื่อหัวคอลัมน์ใน Google Sheets ของคุณ) ---
+        const COL = {
+            PROVINCE: 'จังหวัด',
+            TYPE: 'ประเภทงาน', // หรือ 'ประเภทงานก่อสร้าง'
+            AGENCY: 'หน่วยงาน', // หรือ 'หน่วยงานจัดซื้อ'
+            BUDGET: 'วงเงินงบประมาณ',
+            WINNING_PRICE: 'ราคาที่ประมูลได้', // หรือ 'มูลค่าที่จัดหาได้'
+            WINNER: 'ผู้ชนะการเสนอราคา',
+            SAVINGS_PERCENT: 'ประหยัดได้ (%)',
+            PROJECT_ID: 'เลขที่โครงการ',
+            PROJECT_NAME: 'ชื่อโครงการ',
+            DETAILS: 'รายละเอียดงาน'
+        };
+
+        const SHEET_ID = '1GIm2YzISFwTpA3aipjkU-TwXBK6TKh4oJ3UPzOyhjR8';
+        const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
+
+        let rawData = [];
+        let filteredData = [];
+        let charts = {};
+        
+        // Table Pagination State
+        let currentPage = 1;
+        const rowsPerPage = 10;
+
+        // Utility: แปลงตัวเลขที่มีลูกน้ำให้เป็น Number
+        const parseNum = (val) => {
+            if(!val) return 0;
+            const num = parseFloat(val.toString().replace(/,/g, ''));
+            return isNaN(num) ? 0 : num;
+        };
+
+        const formatCurrency = (num) => {
+            return new Intl.NumberFormat('th-TH', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+        };
+
+        // เริ่มโหลดข้อมูล
+        Papa.parse(CSV_URL, {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                rawData = results.data;
+                filteredData = [...rawData];
+                initApp();
+            },
+            error: function(err) {
+                alert("ไม่สามารถดึงข้อมูลได้ โปรดตรวจสอบสิทธิ์การเข้าถึง Google Sheets ว่าเป็น 'ทุกคนที่มีลิงก์'");
+                console.error(err);
+            }
+        });
+
+        function initApp() {
+            populateFilters();
+            setupEventListeners();
+            updateDashboard();
+        }
+
+        function populateFilters() {
+            const provinces = [...new Set(rawData.map(item => item[COL.PROVINCE]).filter(Boolean))].sort();
+            const types = [...new Set(rawData.map(item => item[COL.TYPE]).filter(Boolean))].sort();
+            const agencies = [...new Set(rawData.map(item => item[COL.AGENCY]).filter(Boolean))].sort();
+
+            const addOptions = (id, arr) => {
+                const select = document.getElementById(id);
+                arr.forEach(val => {
+                    const opt = document.createElement('option');
+                    opt.value = val;
+                    opt.textContent = val;
+                    select.appendChild(opt);
+                });
+            };
+
+            addOptions('filter-province', provinces);
+            addOptions('filter-type', types);
+            addOptions('filter-agency', agencies);
+        }
+
+        function setupEventListeners() {
+            ['filter-province', 'filter-type', 'filter-agency'].forEach(id => {
+                document.getElementById(id).addEventListener('change', () => {
+                    currentPage = 1; // Reset หน้ากลับไป 1 เสมอเมื่อกรองข้อมูล
+                    applyFilters();
+                });
+            });
+
+            document.getElementById('btn-prev').addEventListener('click', () => {
+                if (currentPage > 1) { currentPage--; renderTable(); }
+            });
+            document.getElementById('btn-next').addEventListener('click', () => {
+                const maxPage = Math.ceil(filteredData.length / rowsPerPage);
+                if (currentPage < maxPage) { currentPage++; renderTable(); }
+            });
+        }
+
+        function applyFilters() {
+            const prov = document.getElementById('filter-province').value;
+            const type = document.getElementById('filter-type').value;
+            const agency = document.getElementById('filter-agency').value;
+
+            filteredData = rawData.filter(item => {
+                const matchProv = prov === 'all' || item[COL.PROVINCE] === prov;
+                const matchType = type === 'all' || item[COL.TYPE] === type;
+                const matchAgency = agency === 'all' || item[COL.AGENCY] === agency;
+                return matchProv && matchType && matchAgency;
+            });
+
+            updateDashboard();
+        }
+
+        function updateDashboard() {
+            updateKPIs();
+            renderCharts();
+            renderTable();
+        }
+
+        function updateKPIs() {
+            document.getElementById('kpi-total-projects').textContent = filteredData.length.toLocaleString();
+
+            const totalBudget = filteredData.reduce((sum, item) => sum + parseNum(item[COL.BUDGET]), 0);
+            const totalWinning = filteredData.reduce((sum, item) => sum + parseNum(item[COL.WINNING_PRICE]), 0);
+            
+            document.getElementById('kpi-total-budget').textContent = formatCurrency(totalBudget);
+            document.getElementById('kpi-total-winning').textContent = formatCurrency(totalWinning);
+
+            let avgSavings = 0;
+            if(filteredData.length > 0) {
+                const sumSavings = filteredData.reduce((sum, item) => sum + parseNum(item[COL.SAVINGS_PERCENT]), 0);
+                avgSavings = (sumSavings / filteredData.length).toFixed(2);
+            }
+            document.getElementById('kpi-avg-savings').textContent = avgSavings + '%';
+
+            // Top Winner (นับความถี่)
+            const winnersCount = {};
+            filteredData.forEach(item => {
+                const w = item[COL.WINNER];
+                if(w) winnersCount[w] = (winnersCount[w] || 0) + 1;
+            });
+            let topW = '-';
+            let maxCount = 0;
+            for (const [w, count] of Object.entries(winnersCount)) {
+                if(count > maxCount) { maxCount = count; topW = w; }
+            }
+            document.getElementById('kpi-top-winner').textContent = topW;
+        }
+
+        function renderCharts() {
+            Chart.defaults.font.family = 'Prompt';
+            
+            // 1. Group by Project Type (Budget vs Winning)
+            const typeAgg = {};
+            filteredData.forEach(item => {
+                const t = item[COL.TYPE] || 'อื่นๆ';
+                if(!typeAgg[t]) typeAgg[t] = { budget: 0, winning: 0, count: 0 };
+                typeAgg[t].budget += parseNum(item[COL.BUDGET]);
+                typeAgg[t].winning += parseNum(item[COL.WINNING_PRICE]);
+                typeAgg[t].count += 1;
+            });
+
+            const typeLabels = Object.keys(typeAgg);
+            const budgetData = typeLabels.map(t => typeAgg[t].budget);
+            const winningData = typeLabels.map(t => typeAgg[t].winning);
+            const countData = typeLabels.map(t => typeAgg[t].count);
+
+            // Chart 1: Bar Chart
+            if(charts.barChart) charts.barChart.destroy();
+            charts.barChart = new Chart(document.getElementById('chart-budget-vs-winning'), {
+                type: 'bar',
+                data: {
+                    labels: typeLabels,
+                    datasets: [
+                        { label: 'งบประมาณ', data: budgetData, backgroundColor: '#1e3a8a', borderRadius: 4 }, // Primary Blue
+                        { label: 'ราคาประมูลได้', data: winningData, backgroundColor: '#dc2626', borderRadius: 4 } // Accent Red
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // Chart 2: Donut Chart
+            if(charts.donutChart) charts.donutChart.destroy();
+            charts.donutChart = new Chart(document.getElementById('chart-type-donut'), {
+                type: 'doughnut',
+                data: {
+                    labels: typeLabels,
+                    datasets: [{
+                        data: countData,
+                        backgroundColor: ['#1e3a8a', '#dc2626', '#3b82f6', '#f59e0b', '#10b981', '#64748b'],
+                        borderWidth: 1
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+
+            // Chart 3: Top 5 Winners by Value
+            const winnerValue = {};
+            filteredData.forEach(item => {
+                const w = item[COL.WINNER] || 'ไม่ระบุ';
+                winnerValue[w] = (winnerValue[w] || 0) + parseNum(item[COL.WINNING_PRICE]);
+            });
+            const sortedWinners = Object.entries(winnerValue).sort((a,b) => b[1] - a[1]).slice(0, 5);
+
+            if(charts.hbarChart) charts.hbarChart.destroy();
+            charts.hbarChart = new Chart(document.getElementById('chart-top-winners'), {
+                type: 'bar',
+                data: {
+                    labels: sortedWinners.map(item => item[0]),
+                    datasets: [{
+                        label: 'มูลค่างานรวม (บาท)',
+                        data: sortedWinners.map(item => item[1]),
+                        backgroundColor: '#0ea5e9', // Teal/Cyan accent
+                        borderRadius: 4
+                    }]
+                },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            const startIndex = (currentPage - 1) * rowsPerPage;
+            const endIndex = startIndex + rowsPerPage;
+            const pageData = filteredData.slice(startIndex, endIndex);
+
+            pageData.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition-colors';
+                
+                // Conditional Formatting สำหรับเปอร์เซ็นต์ประหยัด
+                const savingsVal = parseNum(item[COL.SAVINGS_PERCENT]);
+                let savingsClass = 'font-semibold text-slate-700';
+                if (savingsVal > 30) savingsClass = 'font-bold text-green-600 bg-green-50 px-2 py-1 rounded';
+                else if (savingsVal < 5) savingsClass = 'font-bold text-red-600 bg-red-50 px-2 py-1 rounded';
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-slate-500">${item[COL.PROJECT_ID] || '-'}</td>
+                    <td class="px-6 py-4">
+                        <div class="line-clamp-2 text-slate-800 font-medium">${item[COL.PROJECT_NAME] || '-'}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-slate-800">${formatCurrency(parseNum(item[COL.BUDGET]))}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-slate-600">${item[COL.WINNER] || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="${savingsClass}">${savingsVal}%</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button onclick='openModal(${JSON.stringify(item).replace(/'/g, "&#39;")})' 
+                                class="text-white bg-primary hover:bg-navy px-3 py-1.5 rounded text-xs transition-colors">
+                            ดูข้อมูล
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Update Pagination UI
+            const maxPage = Math.ceil(filteredData.length / rowsPerPage) || 1;
+            document.getElementById('page-info').textContent = `หน้า ${currentPage} จาก ${maxPage} (${filteredData.length} รายการ)`;
+            document.getElementById('btn-prev').disabled = currentPage === 1;
+            document.getElementById('btn-next').disabled = currentPage === maxPage;
+        }
+
+        // Modal Functions
+        function openModal(itemData) {
+            const content = document.getElementById('modal-content');
+            content.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <p class="text-sm text-slate-500 mb-1">ชื่อโครงการ</p>
+                        <p class="font-bold text-slate-800 text-lg">${itemData[COL.PROJECT_NAME] || '-'}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-500 mb-1">เลขที่โครงการ</p>
+                        <p class="font-medium text-slate-800">${itemData[COL.PROJECT_ID] || '-'}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-500 mb-1">ประเภทงาน / จังหวัด</p>
+                        <p class="font-medium text-slate-800"><span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">${itemData[COL.TYPE] || '-'}</span> | ${itemData[COL.PROVINCE] || '-'}</p>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded border border-slate-100">
+                        <p class="text-sm text-slate-500 mb-1">วงเงินงบประมาณ</p>
+                        <p class="font-bold text-primary text-xl">${formatCurrency(parseNum(itemData[COL.BUDGET]))} ฿</p>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded border border-slate-100">
+                        <p class="text-sm text-slate-500 mb-1">ราคาที่ประมูลได้</p>
+                        <p class="font-bold text-green-600 text-xl">${formatCurrency(parseNum(itemData[COL.WINNING_PRICE]))} ฿</p>
+                    </div>
+                    <div class="md:col-span-2">
+                        <p class="text-sm text-slate-500 mb-1">ผู้ชนะการเสนอราคา</p>
+                        <p class="font-medium text-slate-800">${itemData[COL.WINNER] || '-'}</p>
+                    </div>
+                    <div class="md:col-span-2">
+                        <p class="text-sm text-slate-500 mb-1">หน่วยงานจัดซื้อ</p>
+                        <p class="font-medium text-slate-800">${itemData[COL.AGENCY] || '-'}</p>
+                    </div>
+                    <div class="md:col-span-2 bg-slate-50 p-4 rounded-lg mt-2">
+                        <p class="text-sm text-slate-500 mb-2">รายละเอียดเพิ่มเติม</p>
+                        <p class="text-slate-700 whitespace-pre-wrap text-sm">${itemData[COL.DETAILS] || 'ไม่มีข้อมูลรายละเอียด'}</p>
+                    </div>
+                </div>
+            `;
+            document.getElementById('detail-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('detail-modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
