@@ -18,7 +18,7 @@ const IPIDashboard = () => {
     try {
       setLoading(true);
       // นำ Web App URL ที่ได้จาก Google Apps Script มาวางที่นี่
-      const scriptUrl = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL'; 
+      const scriptUrl = 'https://script.google.com/macros/s/AKfycbx1jw12Wix8H-esqhRpzgF8mPbGPGEm86FKA8X0RU4v7rIoTNBfKRtDpdQlT4ot4oSl/exec'; 
       const response = await fetch(scriptUrl);
       const jsonData = await response.json();
       setData(jsonData);
