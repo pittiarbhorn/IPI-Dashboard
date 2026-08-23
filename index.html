@@ -9,10 +9,10 @@
   <!-- React & ReactDOM -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <!-- Babel สำหรับแปลงไวยากรณ์ React บนเบราว์เซอร์ -->
+  <!-- Babel -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-100 min-h-screen">
   <div id="root"></div>
 
   <script type="text/babel">
@@ -23,13 +23,12 @@
       const [loading, setLoading] = useState(true);
       const [selectedCategory, setSelectedCategory] = useState('ทั้งหมด');
 
-      // ใส่ URL จาก Apps Script เรียบร้อยแล้ว
-      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzMBuFZb7waa8ep1Sbb-RfS2ijRFmaXEl1I8OpmAHzKqW-kWMIzgwGBvku3rKTJsP8/exec";
+      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw7Mz9UilmHldUjjYq1KbL-R3rfkb0zkQhJlvcclKL5ezl8EnMla7Snl0hDIqQCk2S/exec";
 
-      // กำหนดหมวดหมู่งาน 3 หมวด
+      // ตัวเลือกหมวดหมู่ตรงตามคอลัมน์ 'ประเภทงาน' ใน Sheet
       const categories = [
         'ทั้งหมด',
-        'แอสฟัลต์ติกคอนกรีต',
+        'แอสฟัลติกคอนกรีต',
         'ก่อสร้างอาคาร',
         'ถนนคอนกรีตเสริมเหล็ก'
       ];
@@ -51,52 +50,87 @@
         fetchData();
       }, []);
 
-      // กรองข้อมูลตามหมวดหมู่ที่เลือก (เช็กทั้งชื่อคอลัมน์ 'หมวดหมู่งาน' หรือ 'Category')
+      // กรองข้อมูลด้วยคอลัมน์ 'ประเภทงาน'
       const filteredData = selectedCategory === 'ทั้งหมด'
         ? data
-        : data.filter(item => (item.หมวดหมู่งาน || item.Category) === selectedCategory);
+        : data.filter(item => item['ประเภทงาน'] === selectedCategory);
 
       return (
-        <div className="p-6 max-w-6xl mx-auto">
-          <header className="mb-8 border-b pb-4">
+        <div className="p-6 max-w-7xl mx-auto">
+          <header className="mb-6 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <h1 className="text-3xl font-bold text-gray-800">IPI-Dashboard</h1>
-            <p className="text-gray-500">ระบบติดตามสถานะโครงการก่อสร้างแบบ Real-time</p>
+            <p className="text-gray-500 text-sm mt-1">ระบบติดตามโครงการ EGP (ข้อมูลจาก Google Sheets)</p>
           </header>
 
-          {/* เลือกประเภทงาน 3 หมวด */}
-          <div className="mb-6 flex items-center gap-3">
-            <label className="font-semibold text-gray-700">เลือกประเภทงาน:</label>
+          {/* แถบกรองข้อมูล */}
+          <div className="mb-6 flex items-center gap-3 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+            <label className="font-semibold text-gray-700">ประเภทงาน:</label>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="p-2 border rounded-md shadow-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="p-2 border rounded-lg shadow-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
             >
               {categories.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
+            <span className="ml-auto text-sm text-gray-500">
+              พบ {filteredData.length} รายการ
+            </span>
           </div>
 
-          {/* การแสดงผลข้อมูล */}
+          {/* แสดงการ์ดข้อมูล */}
           {loading ? (
-            <div className="text-center py-12 text-gray-600 font-medium">
-              กำลังโหลดข้อมูลแบบ Real-time จาก Google Sheets...
+            <div className="text-center py-20 text-gray-600 font-medium">
+              กำลังโหลดข้อมูลจาก Google Sheets...
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredData.length > 0 ? (
                 filteredData.map((project, index) => (
-                  <div key={index} className="bg-white p-5 rounded-lg shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
-                    <h3 className="font-bold text-lg text-gray-800 mb-2">
-                      {project.ชื่อโครงการ || project.ProjectName || 'ไม่มีชื่อโครงการ'}
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      <span className="font-semibold">ประเภท:</span> {project.หมวดหมู่งาน || project.Category || '-'}
-                    </p>
+                  <div key={index} className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-start mb-2 gap-2">
+                        <span className="text-xs px-2.5 py-1 bg-blue-50 text-blue-700 font-medium rounded-full border border-blue-100">
+                          {project['ประเภทงาน'] || 'ไม่ระบุประเภท'}
+                        </span>
+                        <span className="text-xs text-gray-400 font-mono">
+                          {project['เลขที่โครงการ']}
+                        </span>
+                      </div>
+
+                      <h3 className="font-bold text-gray-800 text-base mb-2 line-clamp-2" title={project['รายละเอียดงาน']}>
+                        {project['รายละเอียดงาน'] || 'ไม่มีรายละเอียดงาน'}
+                      </h3>
+
+                      <p className="text-xs text-gray-500 mb-3">
+                        <span className="font-semibold text-gray-600">หน่วยงาน:</span> {project['ชื่อหน่วยงาน'] || '-'}
+                      </p>
+                    </div>
+
+                    <div className="border-t pt-3 mt-2 text-xs text-gray-600 space-y-1 bg-gray-50 -mx-5 -mb-5 p-4 rounded-b-xl">
+                      <div className="flex justify-between">
+                        <span>วงเงินงบประมาณ:</span>
+                        <span className="font-semibold text-gray-800">
+                          {project['วงเงินงบประมาณ'] ? Number(project['วงเงินงบประมาณ']).toLocaleString() + ' บาท' : '-'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>ผู้ชนะการเสนอราคา:</span>
+                        <span className="font-medium text-emerald-700 truncate max-w-[150px]" title={project['รายชื่อผู้ชนะการเสนอราคา']}>
+                          {project['รายชื่อผู้ชนะการเสนอราคา'] || '-'}
+                        </span>
+                      </div>
+                      {project['สถานที่'] && (
+                        <div className="text-gray-500 pt-1 border-t border-gray-200 text-[11px]">
+                          📍 {project['สถานที่']}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))
               ) : (
-                <div className="col-span-full text-center py-8 text-gray-500">
+                <div className="col-span-full text-center py-16 bg-white rounded-xl text-gray-500 border border-dashed border-gray-300">
                   ไม่พบข้อมูลโครงการในหมวดหมู่นี้
                 </div>
               )}
