@@ -36,6 +36,13 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo, useRef } = React;
 
+    // จานสีสำหรับกราฟ
+    const COLOR_PALETTE = [
+      '#3B82F6', '#22C55E', '#F59E0B', '#EF4444', 
+      '#8B5CF6', '#06B6D4', '#EC4899', '#10B981',
+      '#6366F1', '#F97316', '#14B8A6', '#A855F7'
+    ];
+
     // ฟังก์ชันแปลงข้อความตัวเลข
     const parseNumber = (val) => {
       if (!val) return 0;
@@ -74,14 +81,18 @@
               tooltip: {
                 callbacks: {
                   label: (context) => {
-                    let label = context.dataset.label || '';
+                    let label = context.dataset.label || context.label || '';
                     if (label) label += ': ';
-                    if (context.parsed.y !== undefined) {
-                      label += context.parsed.y.toLocaleString() + ' บาท';
-                    } else if (context.parsed.x !== undefined) {
-                      label += context.parsed.x.toLocaleString() + ' บาท';
-                    } else if (context.parsed !== undefined) {
-                      label += context.parsed.toLocaleString() + ' บาท';
+                    
+                    const value = context.raw || 0;
+
+                    // แสดงเปอร์เซ็นต์สำหรับ Doughnut Chart
+                    if (type === 'doughnut' || type === 'pie') {
+                      const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                      const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : 0;
+                      label += `${value.toLocaleString()} บาท (${percentage}%)`;
+                    } else {
+                      label += `${value.toLocaleString()} บาท`;
                     }
                     return label;
                   }
@@ -168,54 +179,62 @@
         });
       }, [data, selectedCategory, selectedProvince, selectedAgency, selectedWinner]);
 
-      // Chart 1: งบประมาณตามจังหวัด
+      // 3. กราฟเปรียบเทียบงบประมาณ แต่ละจังหวัด (แยกสีแท่งกราฟตามจังหวัด)
       const provinceChartData = useMemo(() => {
         const provinceMap = {};
         filteredData.forEach(item => {
           const prov = item['จังหวัด'] || 'ไม่ระบุ';
           provinceMap[prov] = (provinceMap[prov] || 0) + parseNumber(item['วงเงินงบประมาณ']);
         });
+
+        const labels = Object.keys(provinceMap);
+        const values = Object.values(provinceMap);
+        const colors = labels.map((_, index) => COLOR_PALETTE[index % COLOR_PALETTE.length]);
+
         return {
-          labels: Object.keys(provinceMap),
+          labels,
           datasets: [{
             label: 'งบประมาณรวม',
-            data: Object.values(provinceMap),
-            backgroundColor: 'rgba(59, 130, 246, 0.7)',
-            borderColor: '#3B82F6',
+            data: values,
+            backgroundColor: colors,
+            borderColor: colors,
             borderWidth: 1,
             borderRadius: 6
           }]
         };
       }, [filteredData]);
 
-      // Chart 2: สัดส่วนประเภทงาน
+      // 2. กราฟสัดส่วนประเภทงาน (ตามงบประมาณ)
       const categoryChartData = useMemo(() => {
         const catMap = {};
         filteredData.forEach(item => {
           const cat = item['ประเภทงาน'] || 'ไม่ระบุ';
           catMap[cat] = (catMap[cat] || 0) + parseNumber(item['วงเงินงบประมาณ']);
         });
+
+        const labels = Object.keys(catMap);
+        const values = Object.values(catMap);
+
         return {
-          labels: Object.keys(catMap),
+          labels,
           datasets: [{
-            data: Object.values(catMap),
-            backgroundColor: [
-              '#3B82F6', '#22C55E', '#F59E0B', '#EF4444', 
-              '#8B5CF6', '#06B6D4', '#EC4899', '#10B981'
-            ],
+            data: values,
+            backgroundColor: COLOR_PALETTE.slice(0, labels.length),
             borderColor: '#0F172A',
             borderWidth: 2
           }]
         };
       }, [filteredData]);
 
-      // Chart 3: Top 5 ผู้ชนะ
+      // 1. กราฟ Top 5 ผู้ชนะการประมูล (คำนวณมูลค่างานรวมถูกต้อง)
       const topWinnersChartData = useMemo(() => {
         const winnerMap = {};
         filteredData.forEach(item => {
           const winner = item['รายชื่อผู้ชนะการเสนอราคา'];
-          if (winner && winner.trim() !== '' && !winner.includes('ยกเลิก')) {
-            winnerMap[winner] = (winnerMap[winner] || 0) + parseNumber(item['วงเงินงบประมาณ']);
+          if (winner && winner.trim() !== '' && !winner.includes('ยกเลิก') && winner !== '-') {
+            // ดึงมูลค่าที่จัดหาได้ หากไม่มีให้ดึงวงเงินงบประมาณ
+            const val = parseNumber(item['มูลค่าที่จัดหาได้']) || parseNumber(item['วงเงินงบประมาณ']);
+            winnerMap[winner] = (winnerMap[winner] || 0) + val;
           }
         });
 
@@ -316,16 +335,27 @@
           {/* Analytics Charts Section */}
           {!loading && filteredData.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* กราฟเปรียบเทียบงบประมาณ แต่ละจังหวัด (แยกสีแท่ง) */}
               <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
                 <h3 className="text-sm font-semibold text-slate-200 mb-4 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#3B82F6]"></span>
                   เปรียบเทียบงบประมาณ แต่ละจังหวัด
                 </h3>
                 <div className="h-64 relative">
-                  <ChartCanvas type="bar" data={provinceChartData} />
+                  <ChartCanvas 
+                    type="bar" 
+                    data={provinceChartData} 
+                    options={{
+                      plugins: {
+                        legend: { display: false }
+                      }
+                    }} 
+                  />
                 </div>
               </div>
 
+              {/* กราฟสัดส่วนประเภทงาน (แสดง % ใน Tooltip) */}
               <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
                 <h3 className="text-sm font-semibold text-slate-200 mb-4 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#F59E0B]"></span>
@@ -344,6 +374,7 @@
                 </div>
               </div>
 
+              {/* Top 5 ผู้ชนะการประมูล (แก้ไขการรวมมูลค่างาน) */}
               <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
                 <h3 className="text-sm font-semibold text-slate-200 mb-4 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#22C55E]"></span>
@@ -357,6 +388,7 @@
                   />
                 </div>
               </div>
+
             </div>
           )}
 
@@ -373,6 +405,9 @@
                   const budgetNum = parseNumber(project['วงเงินงบประมาณ']);
                   const procureNum = parseNumber(project['มูลค่าที่จัดหาได้']);
                   const savingsNum = budgetNum - procureNum;
+                  
+                  // คำนวณเปอร์เซ็นต์ส่วนต่างการประหยัดได้
+                  const savingsPercent = budgetNum > 0 ? ((savingsNum / budgetNum) * 100).toFixed(2) : 0;
 
                   return (
                     <div 
@@ -421,11 +456,13 @@
                           </span>
                         </div>
 
-                        {/* 6. ประหยัดได้ */}
+                        {/* 6. ประหยัดได้ (มีเปอร์เซ็นต์ต่อท้าย) */}
                         <div className="flex justify-between items-center">
                           <span className="text-slate-400">ประหยัดได้:</span>
                           <span className={`font-semibold font-mono ${savingsNum > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
-                            {savingsNum > 0 ? `${savingsNum.toLocaleString()} บาท` : '0 บาท'}
+                            {savingsNum > 0 
+                              ? `${savingsNum.toLocaleString()} บาท (${savingsPercent}%)` 
+                              : '0 บาท (0%)'}
                           </span>
                         </div>
 
@@ -486,7 +523,7 @@
                     <p>🏆 <span className="text-slate-400">ผู้ชนะการเสนอราคา:</span> <span className="text-emerald-400 font-medium">{selectedProject['รายชื่อผู้ชนะการเสนอราคา'] || '-'}</span></p>
                   </div>
 
-                  {/* แสดงสถานที่แบบชัดเจน */}
+                  {/* แสดงสถานที่ */}
                   <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
                     <h4 className="text-xs font-semibold text-slate-400 mb-1">📍 สถานที่ดำเนินโครงการ:</h4>
                     <p className="text-slate-200 leading-relaxed">
@@ -512,6 +549,11 @@
                       <p className="text-[11px] text-slate-400">ประหยัดได้</p>
                       <p className="font-bold text-emerald-400 font-mono text-xs mt-1">
                         {(parseNumber(selectedProject['วงเงินงบประมาณ']) - parseNumber(selectedProject['มูลค่าที่จัดหาได้'])).toLocaleString()} ฿
+                        <span className="block text-[10px] text-emerald-300 font-normal">
+                          ({parseNumber(selectedProject['วงเงินงบประมาณ']) > 0 
+                            ? (((parseNumber(selectedProject['วงเงินงบประมาณ']) - parseNumber(selectedProject['มูลค่าที่จัดหาได้'])) / parseNumber(selectedProject['วงเงินงบประมาณ'])) * 100).toFixed(2) 
+                            : 0}%)
+                        </span>
                       </p>
                     </div>
                   </div>
