@@ -23,6 +23,15 @@
       font-family: 'Prompt', sans-serif;
       background-color: #0F172A;
     }
+    /* ซ่อนลูกศรขึ้นลงใน input type=number */
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { 
+      -webkit-appearance: none; 
+      margin: 0; 
+    }
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
   </style>
 </head>
 <body class="bg-[#0F172A] text-slate-200 min-h-screen relative overflow-x-hidden">
@@ -86,7 +95,6 @@
                     
                     const value = context.raw || 0;
 
-                    // แสดงเปอร์เซ็นต์สำหรับ Doughnut Chart
                     if (type === 'doughnut' || type === 'pie') {
                       const total = context.dataset.data.reduce((a, b) => a + b, 0);
                       const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : 0;
@@ -135,6 +143,10 @@
       const [selectedProvince, setSelectedProvince] = useState('ทั้งหมด');
       const [selectedAgency, setSelectedAgency] = useState('ทั้งหมด');
       const [selectedWinner, setSelectedWinner] = useState('ทั้งหมด');
+      
+      // State ตัวกรองช่วงงบประมาณ
+      const [minBudget, setMinBudget] = useState('');
+      const [maxBudget, setMaxBudget] = useState('');
 
       const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwnmulpaVrWQDe_sylfiDFMFnZ7OnBXk-dmqqWWzJzf612EVjj3Y5T9baCB9E1KfPpZ/exec";
 
@@ -168,6 +180,7 @@
       const agencies = useMemo(() => getUniqueOptions('ชื่อหน่วยงาน'), [data]);
       const winners = useMemo(() => getUniqueOptions('รายชื่อผู้ชนะการเสนอราคา'), [data]);
 
+      // กรองข้อมูลตาม Dropdown และช่วงงบประมาณ
       const filteredData = useMemo(() => {
         if (!Array.isArray(data)) return [];
         return data.filter(item => {
@@ -175,11 +188,17 @@
           const matchProvince = selectedProvince === 'ทั้งหมด' || item['จังหวัด'] === selectedProvince;
           const matchAgency = selectedAgency === 'ทั้งหมด' || item['ชื่อหน่วยงาน'] === selectedAgency;
           const matchWinner = selectedWinner === 'ทั้งหมด' || item['รายชื่อผู้ชนะการเสนอราคา'] === selectedWinner;
-          return matchCategory && matchProvince && matchAgency && matchWinner;
-        });
-      }, [data, selectedCategory, selectedProvince, selectedAgency, selectedWinner]);
 
-      // 3. กราฟเปรียบเทียบงบประมาณ แต่ละจังหวัด (แยกสีแท่งกราฟตามจังหวัด)
+          const budget = parseNumber(item['วงเงินงบประมาณ']);
+          const min = minBudget !== '' ? parseNumber(minBudget) : -Infinity;
+          const max = maxBudget !== '' ? parseNumber(maxBudget) : Infinity;
+          const matchBudget = budget >= min && budget <= max;
+
+          return matchCategory && matchProvince && matchAgency && matchWinner && matchBudget;
+        });
+      }, [data, selectedCategory, selectedProvince, selectedAgency, selectedWinner, minBudget, maxBudget]);
+
+      // กราฟเปรียบเทียบงบประมาณ แต่ละจังหวัด
       const provinceChartData = useMemo(() => {
         const provinceMap = {};
         filteredData.forEach(item => {
@@ -204,7 +223,7 @@
         };
       }, [filteredData]);
 
-      // 2. กราฟสัดส่วนประเภทงาน (ตามงบประมาณ)
+      // กราฟสัดส่วนประเภทงาน
       const categoryChartData = useMemo(() => {
         const catMap = {};
         filteredData.forEach(item => {
@@ -226,13 +245,12 @@
         };
       }, [filteredData]);
 
-      // 1. กราฟ Top 5 ผู้ชนะการประมูล (คำนวณมูลค่างานรวมถูกต้อง)
+      // กราฟ Top 5 ผู้ชนะการประมูล
       const topWinnersChartData = useMemo(() => {
         const winnerMap = {};
         filteredData.forEach(item => {
           const winner = item['รายชื่อผู้ชนะการเสนอราคา'];
           if (winner && winner.trim() !== '' && !winner.includes('ยกเลิก') && winner !== '-') {
-            // ดึงมูลค่าที่จัดหาได้ หากไม่มีให้ดึงวงเงินงบประมาณ
             const val = parseNumber(item['มูลค่าที่จัดหาได้']) || parseNumber(item['วงเงินงบประมาณ']);
             winnerMap[winner] = (winnerMap[winner] || 0) + val;
           }
@@ -266,8 +284,8 @@
           </header>
 
           {/* Filter Section */}
-          <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-5 rounded-2xl shadow-2xl">
-            <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-700/50">
+          <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-5 rounded-2xl shadow-2xl space-y-4">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-700/50">
               <h2 className="font-semibold text-slate-300 text-sm flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#3B82F6]"></span>
                 ตัวกรองค้นหาโครงการ
@@ -277,6 +295,7 @@
               </span>
             </div>
 
+            {/* Dropdown Filters */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1.5">ประเภทงาน</label>
@@ -330,13 +349,47 @@
                 </select>
               </div>
             </div>
+
+            {/* Budget Range Filter */}
+            <div className="pt-3 border-t border-slate-700/40 flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-3 text-xs text-slate-300">
+                <span className="font-medium text-slate-400">งบประมาณตั้งแต่</span>
+                <input
+                  type="number"
+                  placeholder="0"
+                  value={minBudget}
+                  onChange={(e) => setMinBudget(e.target.value)}
+                  className="w-40 sm:w-48 p-2 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-[#3B82F6] transition-colors"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 text-xs text-slate-300">
+                <span className="font-medium text-slate-400">จนถึง</span>
+                <input
+                  type="number"
+                  placeholder="ไม่จำกัด"
+                  value={maxBudget}
+                  onChange={(e) => setMaxBudget(e.target.value)}
+                  className="w-40 sm:w-48 p-2 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-[#3B82F6] transition-colors"
+                />
+              </div>
+
+              {(minBudget !== '' || maxBudget !== '') && (
+                <button
+                  onClick={() => { setMinBudget(''); setMaxBudget(''); }}
+                  className="text-xs text-rose-400 hover:text-rose-300 font-medium underline transition-colors"
+                >
+                  ล้างช่วงราคา
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Analytics Charts Section */}
           {!loading && filteredData.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               
-              {/* กราฟเปรียบเทียบงบประมาณ แต่ละจังหวัด (แยกสีแท่ง) */}
+              {/* กราฟเปรียบเทียบงบประมาณ แต่ละจังหวัด */}
               <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
                 <h3 className="text-sm font-semibold text-slate-200 mb-4 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#3B82F6]"></span>
@@ -355,7 +408,7 @@
                 </div>
               </div>
 
-              {/* กราฟสัดส่วนประเภทงาน (แสดง % ใน Tooltip) */}
+              {/* กราฟสัดส่วนประเภทงาน */}
               <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
                 <h3 className="text-sm font-semibold text-slate-200 mb-4 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#F59E0B]"></span>
@@ -374,7 +427,7 @@
                 </div>
               </div>
 
-              {/* Top 5 ผู้ชนะการประมูล (แก้ไขการรวมมูลค่างาน) */}
+              {/* Top 5 ผู้ชนะการประมูล */}
               <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
                 <h3 className="text-sm font-semibold text-slate-200 mb-4 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#22C55E]"></span>
@@ -406,7 +459,6 @@
                   const procureNum = parseNumber(project['มูลค่าที่จัดหาได้']);
                   const savingsNum = budgetNum - procureNum;
                   
-                  // คำนวณเปอร์เซ็นต์ส่วนต่างการประหยัดได้
                   const savingsPercent = budgetNum > 0 ? ((savingsNum / budgetNum) * 100).toFixed(2) : 0;
 
                   return (
@@ -416,7 +468,6 @@
                       className="bg-slate-800/40 backdrop-blur-xl p-5 rounded-2xl border border-slate-700/50 hover:border-[#3B82F6] transition-all duration-300 shadow-xl hover:shadow-2xl hover:shadow-blue-500/10 cursor-pointer flex flex-col justify-between group relative overflow-hidden"
                     >
                       <div>
-                        {/* Header ของ Card: 1. เลขที่โครงการ */}
                         <div className="flex justify-between items-center mb-3">
                           <span className="text-[11px] px-2.5 py-0.5 bg-blue-500/10 text-[#3B82F6] font-medium rounded-full border border-blue-500/20">
                             {project['ประเภทงาน'] || 'ไม่ระบุประเภท'}
@@ -426,7 +477,6 @@
                           </span>
                         </div>
 
-                        {/* 2. ชื่อหน่วยงาน & 3. จังหวัด */}
                         <div className="mb-4 space-y-1">
                           <h3 className="font-semibold text-slate-100 text-sm group-hover:text-blue-300 transition-colors line-clamp-1" title={project['ชื่อหน่วยงาน']}>
                             🏛️ {project['ชื่อหน่วยงาน'] || '-'}
@@ -437,10 +487,8 @@
                         </div>
                       </div>
 
-                      {/* รายละเอียดด้านการเงินและผู้ชนะ */}
                       <div className="border-t border-slate-700/50 pt-3 text-xs text-slate-300 space-y-2 bg-slate-900/50 -mx-5 -mb-5 p-4 rounded-b-2xl">
                         
-                        {/* 4. วงเงินงบประมาณ */}
                         <div className="flex justify-between items-center">
                           <span className="text-slate-400">วงเงินงบประมาณ:</span>
                           <span className="font-semibold text-slate-100 font-mono">
@@ -448,7 +496,6 @@
                           </span>
                         </div>
 
-                        {/* 5. มูลค่าที่จัดหาได้ */}
                         <div className="flex justify-between items-center">
                           <span className="text-slate-400">มูลค่าที่จัดหาได้:</span>
                           <span className="font-medium text-slate-200 font-mono">
@@ -456,7 +503,6 @@
                           </span>
                         </div>
 
-                        {/* 6. ประหยัดได้ (มีเปอร์เซ็นต์ต่อท้าย) */}
                         <div className="flex justify-between items-center">
                           <span className="text-slate-400">ประหยัดได้:</span>
                           <span className={`font-semibold font-mono ${savingsNum > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
@@ -466,7 +512,6 @@
                           </span>
                         </div>
 
-                        {/* 7. ผู้ชนะการเสนอราคา */}
                         <div className="flex justify-between items-center pt-1 border-t border-slate-800">
                           <span className="text-slate-400">ผู้ชนะ:</span>
                           <span className="font-medium text-[#22C55E] truncate max-w-[160px]" title={project['รายชื่อผู้ชนะการเสนอราคา']}>
@@ -489,14 +534,13 @@
             </div>
           )}
 
-          {/* Modal Pop-up แสดงรายละเอียดงานและสถานที่ */}
+          {/* Modal Pop-up */}
           {selectedProject && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
               <div 
                 className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative space-y-5 max-h-[90vh] overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* ปุ่มปิด Modal */}
                 <button 
                   onClick={() => setSelectedProject(null)}
                   className="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-2 rounded-full transition-colors"
@@ -523,7 +567,6 @@
                     <p>🏆 <span className="text-slate-400">ผู้ชนะการเสนอราคา:</span> <span className="text-emerald-400 font-medium">{selectedProject['รายชื่อผู้ชนะการเสนอราคา'] || '-'}</span></p>
                   </div>
 
-                  {/* แสดงสถานที่ */}
                   <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
                     <h4 className="text-xs font-semibold text-slate-400 mb-1">📍 สถานที่ดำเนินโครงการ:</h4>
                     <p className="text-slate-200 leading-relaxed">
@@ -531,7 +574,6 @@
                     </p>
                   </div>
 
-                  {/* สรุปงบประมาณ */}
                   <div className="grid grid-cols-3 gap-3 pt-2 text-center">
                     <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700/50">
                       <p className="text-[11px] text-slate-400">งบประมาณ</p>
