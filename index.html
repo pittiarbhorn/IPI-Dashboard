@@ -23,15 +23,6 @@
       font-family: 'Prompt', sans-serif;
       background-color: #0F172A;
     }
-    /* ซ่อนลูกศรขึ้นลงใน input type=number */
-    input[type=number]::-webkit-inner-spin-button, 
-    input[type=number]::-webkit-outer-spin-button { 
-      -webkit-appearance: none; 
-      margin: 0; 
-    }
-    input[type=number] {
-      -moz-appearance: textfield;
-    }
   </style>
 </head>
 <body class="bg-[#0F172A] text-slate-200 min-h-screen relative overflow-x-hidden">
@@ -59,6 +50,13 @@
       const cleaned = String(val).replace(/,/g, '').trim();
       const parsed = parseFloat(cleaned);
       return isNaN(parsed) ? 0 : parsed;
+    };
+
+    // ฟังก์ชันใส่เครื่องหมายจุลภาคหลักพันในช่อง Input
+    const formatNumberInput = (val) => {
+      if (!val) return '';
+      const raw = String(val).replace(/\D/g, '');
+      return raw ? Number(raw).toLocaleString('en-US') : '';
     };
 
     // Component Wrapper สำหรับ Chart.js
@@ -144,7 +142,7 @@
       const [selectedAgency, setSelectedAgency] = useState('ทั้งหมด');
       const [selectedWinner, setSelectedWinner] = useState('ทั้งหมด');
       
-      // State ตัวกรองช่วงงบประมาณ
+      // State ตัวกรองช่วงงบประมาณ (รูปแบบมีจุลภาค)
       const [minBudget, setMinBudget] = useState('');
       const [maxBudget, setMaxBudget] = useState('');
 
@@ -350,27 +348,27 @@
               </div>
             </div>
 
-            {/* Budget Range Filter */}
+            {/* Budget Range Filter with Comma Formatting */}
             <div className="pt-3 border-t border-slate-700/40 flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-3 text-xs text-slate-300">
                 <span className="font-medium text-slate-400">งบประมาณตั้งแต่</span>
                 <input
-                  type="number"
+                  type="text"
                   placeholder="0"
                   value={minBudget}
-                  onChange={(e) => setMinBudget(e.target.value)}
-                  className="w-40 sm:w-48 p-2 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-[#3B82F6] transition-colors"
+                  onChange={(e) => setMinBudget(formatNumberInput(e.target.value))}
+                  className="w-40 sm:w-48 p-2 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs text-slate-200 font-mono focus:outline-none focus:border-[#3B82F6] transition-colors"
                 />
               </div>
 
               <div className="flex items-center gap-3 text-xs text-slate-300">
                 <span className="font-medium text-slate-400">จนถึง</span>
                 <input
-                  type="number"
+                  type="text"
                   placeholder="ไม่จำกัด"
                   value={maxBudget}
-                  onChange={(e) => setMaxBudget(e.target.value)}
-                  className="w-40 sm:w-48 p-2 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-[#3B82F6] transition-colors"
+                  onChange={(e) => setMaxBudget(formatNumberInput(e.target.value))}
+                  className="w-40 sm:w-48 p-2 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs text-slate-200 font-mono focus:outline-none focus:border-[#3B82F6] transition-colors"
                 />
               </div>
 
