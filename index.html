@@ -59,6 +59,99 @@
       return raw ? Number(raw).toLocaleString('en-US') : '';
     };
 
+    // Component สำหรับ Searchable Dropdown
+    function SearchableSelect({ label, options, selected, onSelect, placeholder = "พิมพ์ค้นหาผู้ชนะ..." }) {
+      const [isOpen, setIsOpen] = useState(false);
+      const [searchTerm, setSearchTerm] = useState('');
+      const containerRef = useRef(null);
+
+      // กรองตัวเลือกตามคำค้นหา
+      const filteredOptions = useMemo(() => {
+        if (!searchTerm.trim()) return options;
+        return options.filter(opt =>
+          opt.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      }, [options, searchTerm]);
+
+      // ปิด Dropdown เมื่อคลิกพื้นที่อื่น
+      useEffect(() => {
+        const handleClickOutside = (event) => {
+          if (containerRef.current && !containerRef.current.contains(event.target)) {
+            setIsOpen(false);
+          }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+      }, []);
+
+      // ซิงค์ข้อความค้นหากับค่าที่เลือก
+      useEffect(() => {
+        if (selected === 'ทั้งหมด') {
+          setSearchTerm('');
+        } else {
+          setSearchTerm(selected);
+        }
+      }, [selected]);
+
+      return (
+        <div className="relative" ref={containerRef}>
+          <label className="block text-xs font-medium text-slate-400 mb-1.5">{label}</label>
+          <div className="relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onFocus={() => setIsOpen(true)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setIsOpen(true);
+                if (e.target.value === '') {
+                  onSelect('ทั้งหมด');
+                }
+              }}
+              placeholder={placeholder}
+              className="w-full p-2.5 pr-8 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-[#3B82F6] transition-colors truncate"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  onSelect('ทั้งหมด');
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs bg-slate-800 rounded-full w-4 h-4 flex items-center justify-center"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {isOpen && (
+            <ul className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl text-xs divide-y divide-slate-800/50">
+              {filteredOptions.length > 0 ? (
+                filteredOptions.map((opt, idx) => (
+                  <li
+                    key={idx}
+                    onClick={() => {
+                      onSelect(opt);
+                      setSearchTerm(opt === 'ทั้งหมด' ? '' : opt);
+                      setIsOpen(false);
+                    }}
+                    className={`p-2.5 hover:bg-blue-600/20 hover:text-blue-300 cursor-pointer transition-colors leading-relaxed ${
+                      selected === opt ? 'bg-blue-600/30 text-blue-400 font-semibold' : 'text-slate-200'
+                    }`}
+                  >
+                    {opt}
+                  </li>
+                ))
+              ) : (
+                <li className="p-3 text-slate-500 text-center">ไม่พบรายชื่อที่ค้นหา</li>
+              )}
+            </ul>
+          )}
+        </div>
+      );
+    }
+
     // Component Wrapper สำหรับ Chart.js
     function ChartCanvas({ type, data, options }) {
       const canvasRef = useRef(null);
@@ -142,7 +235,7 @@
       const [selectedAgency, setSelectedAgency] = useState('ทั้งหมด');
       const [selectedWinner, setSelectedWinner] = useState('ทั้งหมด');
       
-      // State ตัวกรองช่วงงบประมาณ (รูปแบบมีจุลภาค)
+      // State ตัวกรองช่วงงบประมาณ
       const [minBudget, setMinBudget] = useState('');
       const [maxBudget, setMaxBudget] = useState('');
 
@@ -185,7 +278,10 @@
           const matchCategory = selectedCategory === 'ทั้งหมด' || item['ประเภทงาน'] === selectedCategory;
           const matchProvince = selectedProvince === 'ทั้งหมด' || item['จังหวัด'] === selectedProvince;
           const matchAgency = selectedAgency === 'ทั้งหมด' || item['ชื่อหน่วยงาน'] === selectedAgency;
-          const matchWinner = selectedWinner === 'ทั้งหมด' || item['รายชื่อผู้ชนะการเสนอราคา'] === selectedWinner;
+          
+          // ตรวจสอบการกรองผู้ชนะ
+          const itemWinner = item['รายชื่อผู้ชนะการเสนอราคา'] || '';
+          const matchWinner = selectedWinner === 'ทั้งหมด' || itemWinner.toLowerCase().includes(selectedWinner.toLowerCase());
 
           const budget = parseNumber(item['วงเงินงบประมาณ']);
           const min = minBudget !== '' ? parseNumber(minBudget) : -Infinity;
@@ -334,21 +430,17 @@
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1.5">ผู้ชนะการเสนอราคา</label>
-                <select
-                  value={selectedWinner}
-                  onChange={(e) => setSelectedWinner(e.target.value)}
-                  className="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-[#3B82F6]"
-                >
-                  {winners.map(winner => (
-                    <option key={winner} value={winner} className="bg-[#0F172A] text-slate-200">{winner}</option>
-                  ))}
-                </select>
-              </div>
+              {/* ช่องค้นหาผู้ชนะการเสนอราคาแบบพิมพ์ค้นหาได้ */}
+              <SearchableSelect
+                label="ผู้ชนะการเสนอราคา"
+                options={winners}
+                selected={selectedWinner}
+                onSelect={(val) => setSelectedWinner(val)}
+                placeholder="พิมพ์ค้นหารายชื่อผู้ชนะ..."
+              />
             </div>
 
-            {/* Budget Range Filter with Comma Formatting */}
+            {/* Budget Range Filter */}
             <div className="pt-3 border-t border-slate-700/40 flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-3 text-xs text-slate-300">
                 <span className="font-medium text-slate-400">งบประมาณตั้งแต่</span>
@@ -372,12 +464,16 @@
                 />
               </div>
 
-              {(minBudget !== '' || maxBudget !== '') && (
+              {(minBudget !== '' || maxBudget !== '' || selectedWinner !== 'ทั้งหมด') && (
                 <button
-                  onClick={() => { setMinBudget(''); setMaxBudget(''); }}
+                  onClick={() => { 
+                    setMinBudget(''); 
+                    setMaxBudget(''); 
+                    setSelectedWinner('ทั้งหมด');
+                  }}
                   className="text-xs text-rose-400 hover:text-rose-300 font-medium underline transition-colors"
                 >
-                  ล้างช่วงราคา
+                  ล้างการค้นหา
                 </button>
               )}
             </div>
