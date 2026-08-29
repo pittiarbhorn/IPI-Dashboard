@@ -94,7 +94,7 @@
       }, [selected]);
 
       return (
-        <div className="relative" ref={containerRef}>
+        <div className="relative z-40" ref={containerRef}>
           <label className="block text-xs font-medium text-slate-400 mb-1.5">{label}</label>
           <div className="relative">
             <input
@@ -109,7 +109,7 @@
                 }
               }}
               placeholder={placeholder}
-              className="w-full p-2.5 pr-8 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-[#3B82F6] transition-colors truncate"
+              className="w-full p-2.5 pr-8 bg-slate-900/90 border border-slate-700/80 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-[#3B82F6] transition-colors truncate"
             />
             {searchTerm && (
               <button
@@ -126,7 +126,7 @@
           </div>
 
           {isOpen && (
-            <ul className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl text-xs divide-y divide-slate-800/50">
+            <ul className="absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl shadow-2xl text-xs divide-y divide-slate-800/60 ring-1 ring-black/5">
               {filteredOptions.length > 0 ? (
                 filteredOptions.map((opt, idx) => (
                   <li
@@ -136,8 +136,8 @@
                       setSearchTerm(opt === 'ทั้งหมด' ? '' : opt);
                       setIsOpen(false);
                     }}
-                    className={`p-2.5 hover:bg-blue-600/20 hover:text-blue-300 cursor-pointer transition-colors leading-relaxed ${
-                      selected === opt ? 'bg-blue-600/30 text-blue-400 font-semibold' : 'text-slate-200'
+                    className={`p-2.5 hover:bg-blue-600/30 hover:text-blue-300 cursor-pointer transition-colors leading-relaxed ${
+                      selected === opt ? 'bg-blue-600/40 text-blue-300 font-semibold' : 'text-slate-200'
                     }`}
                   >
                     {opt}
@@ -368,17 +368,17 @@
       }, [filteredData]);
 
       return (
-        <div className="p-6 max-w-7xl mx-auto relative z-10 space-y-6">
+        <div className="p-6 max-w-7xl mx-auto space-y-6">
           
           {/* Header */}
-          <header className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-6 rounded-2xl shadow-2xl">
+          <header className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-6 rounded-2xl shadow-2xl relative z-10">
             <h1 className="text-3xl font-bold bg-gradient-to-r from-white via-slate-200 to-blue-400 bg-clip-text text-transparent">
               IPI-Dashboard
             </h1>
           </header>
 
-          {/* Filter Section */}
-          <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-5 rounded-2xl shadow-2xl space-y-4">
+          {/* Filter Section (ตั้งค่า relative z-30 เพื่อให้ลอยอยู่หน้าสุด) */}
+          <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-5 rounded-2xl shadow-2xl space-y-4 relative z-30">
             <div className="flex justify-between items-center pb-3 border-b border-slate-700/50">
               <h2 className="font-semibold text-slate-300 text-sm flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#3B82F6]"></span>
@@ -479,9 +479,9 @@
             </div>
           </div>
 
-          {/* Analytics Charts Section */}
+          {/* Analytics Charts Section (ตั้งค่า relative z-10 ให้ลำดับเลเยอร์ต่ำกว่ากล่องตัวกรอง) */}
           {!loading && filteredData.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-10">
               
               {/* กราฟเปรียบเทียบงบประมาณ แต่ละจังหวัด */}
               <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
@@ -546,7 +546,7 @@
               กำลังโหลดข้อมูลจาก Google Sheets...
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-0">
               {filteredData.length > 0 ? (
                 filteredData.map((project, index) => {
                   const budgetNum = parseNumber(project['วงเงินงบประมาณ']);
